@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PC 사양 추천 AI</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+:root{
+  --bg:#070b14;--panel:#0d1424;--card:#111827;--input:#161f33;
+  --ai:#0f1929;--user:#0e2240;
+  --blue:#3b82f6;--cyan:#06b6d4;--green:#10b981;--yellow:#f59e0b;
+  --red:#ef4444;--purple:#8b5cf6;--orange:#f97316;
+  --text:#e8f0ff;--dim:#8899bb;--muted:#3d5070;
+  --border:#1a2840;--bhi:#243855;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;display:flex;flex-direction:column;}
+
+/* HEADER */
+#hdr{display:flex;align-items:center;gap:12px;padding:11px 20px;background:rgba(7,11,20,0.97);border-bottom:1px solid var(--border);backdrop-filter:blur(16px);z-index:100;flex-shrink:0;}
+.hlogo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--blue),var(--cyan));display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 18px rgba(59,130,246,0.35);}
+.htitle{font-size:15px;font-weight:700;}.hsub{font-size:10px;color:var(--dim);font-family:'JetBrains Mono',monospace;}
+.hstat{display:flex;align-items:center;gap:6px;margin-left:auto;font-size:11px;color:var(--dim);}
+.hdot{width:7px;height:7px;background:var(--green);border-radius:50%;box-shadow:0 0 8px var(--green);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.4}}
+.hrst{background:transparent;border:1px solid var(--bhi);color:var(--dim);padding:5px 12px;border-radius:7px;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-left:14px;transition:all .2s;}
+.hrst:hover{border-color:var(--blue);color:var(--blue);}
+
+/* MAIN */
+#main{flex:1;display:grid;grid-template-columns:1fr 400px;overflow:hidden;min-height:0;}
+
+/* LEFT DASH */
+#dash{overflow-y:auto;padding:0;display:flex;flex-direction:column;border-right:1px solid var(--border);}
+#dash::-webkit-scrollbar{width:3px;}
+#dash::-webkit-scrollbar-thumb{background:var(--bhi);border-radius:2px;}
+
+/* Tab bar */
+#tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--panel);}
+.tab{flex:1;padding:10px 6px;text-align:center;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;letter-spacing:.3px;}
+.tab:hover{color:var(--dim);}
+.tab.active{color:var(--cyan);border-bottom-color:var(--cyan);}
+
+/* Tab content */
+.tab-content{display:none;flex:1;overflow-y:auto;padding:16px;}
+.tab-content.active{display:block;}
+.tab-content::-webkit-scrollbar{width:3px;}
+.tab-content::-webkit-scrollbar-thumb{background:var(--bhi);border-radius:2px;}
+
+/* Empty state */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px;gap:14px;color:var(--muted);text-align:center;}
+.empty-icon{font-size:44px;opacity:.25;}
+.empty p{font-size:13px;line-height:1.8;color:var(--dim);}
+
+/* ── BENCHMARK RANKING TABLE ── */
+.rank-section{margin-bottom:20px;}
+.rank-title{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.rank-title::after{content:'';flex:1;height:1px;background:var(--border);}
+.rank-table{width:100%;border-collapse:collapse;}
+.rank-table th{font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;padding:6px 10px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;}
+.rank-table th:not(:first-child){text-align:right;}
+.rank-row{border-bottom:1px solid rgba(26,40,64,0.6);transition:background .15s;cursor:default;}
+.rank-row:hover{background:rgba(59,130,246,0.04);}
+.rank-row.recommended{background:rgba(6,182,212,0.06);border-left:3px solid var(--cyan);}
+.rank-row.recommended:hover{background:rgba(6,182,212,0.1);}
+.rank-row td{padding:8px 10px;vertical-align:middle;}
+.rk-num{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);width:24px;}
+.rk-num.gold{color:#fbbf24;}.rk-num.silver{color:#94a3b8;}.rk-num.bronze{color:#b45309;}
+.rk-name{font-size:12px;color:var(--text);}
+.rk-tag{font-size:9px;font-family:'JetBrains Mono',monospace;padding:2px 6px;border-radius:3px;margin-left:5px;vertical-align:middle;}
+.rk-badge-rec{background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.4);color:var(--cyan);}
+.rk-badge-tier{background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);color:var(--blue);}
+.rk-score{font-family:'JetBrains Mono',monospace;font-size:11px;text-align:right;}
+.rk-bar-cell{width:80px;}
+.rk-bar-wrap{height:4px;background:var(--input);border-radius:2px;overflow:hidden;}
+.rk-bar-fill{height:100%;border-radius:2px;}
+.rk-price{font-family:'JetBrains Mono',monospace;font-size:11px;text-align:right;white-space:nowrap;}
+.rk-price.db{color:var(--green);}
+.rk-price.est{color:var(--dim);}
+.rk-links{text-align:right;white-space:nowrap;}
+.rl{display:inline-flex;align-items:center;font-size:9px;padding:2px 6px;border-radius:3px;text-decoration:none;border:1px solid;transition:all .15s;font-family:'JetBrains Mono',monospace;margin-left:3px;}
+.rl.dn{color:#ff8c42;border-color:rgba(255,107,0,.3);background:rgba(255,107,0,.06);}
+.rl.dn:hover{background:rgba(255,107,0,.14);}
+.rl.nv{color:#19ce60;border-color:rgba(25,206,96,.3);background:rgba(25,206,96,.06);}
+.rl.nv:hover{background:rgba(25,206,96,.14);}
+
+/* ── PRICE INFO TAB ── */
+.price-summary{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px;}
+.ps-head{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.ps-head-left{}
+.ps-label{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--muted);letter-spacing:.7px;text-transform:uppercase;}
+.ps-total-db{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--green);margin-top:2px;}
+.ps-total-ai{font-size:11px;color:var(--dim);margin-top:2px;}
+.budget-badge{padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;text-align:right;}
+.budget-badge.ok{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:var(--green);}
+.budget-badge.over{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--red);}
+.budget-badge.close{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--yellow);}
+.budget-badge small{display:block;font-size:9px;font-weight:400;margin-top:2px;opacity:.8;}
+
+/* Budget track */
+.btrack-wrap{padding:10px 16px 14px;border-bottom:1px solid var(--border);}
+.btrack-bg{height:8px;background:var(--input);border-radius:4px;position:relative;overflow:visible;}
+.btrack-fill{height:100%;border-radius:4px;transition:width 1s cubic-bezier(.4,0,.2,1);}
+.btrack-marker{position:absolute;top:-5px;width:2px;height:18px;background:var(--yellow);border-radius:1px;transform:translateX(-50%);}
+.btrack-nums{display:flex;justify-content:space-between;margin-top:6px;font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--muted);}
+
+/* Part rows */
+.part-row{display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);gap:10px;}
+.part-row:last-child{border-bottom:none;}
+.pr-icon{font-size:16px;flex-shrink:0;}
+.pr-info{flex:1;min-width:0;}
+.pr-label{font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.pr-model{font-size:12px;color:var(--text);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pr-links{display:flex;gap:4px;margin-top:5px;}
+.pr-right{text-align:right;flex-shrink:0;}
+.pr-price{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:var(--green);}
+.pr-note{font-size:9px;color:var(--muted);margin-top:2px;}
+.price-updating{font-size:10px;color:var(--cyan);display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;}
+.spinner{width:10px;height:10px;border:2px solid var(--bhi);border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Score row */
+.score-pills{display:flex;gap:8px;margin-bottom:14px;}
+.spill{flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 6px;text-align:center;}
+.spill-num{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;}
+.spill-lbl{font-size:9px;color:var(--muted);margin-top:4px;}
+.vpm-box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.vpm-lbl{font-size:11px;color:var(--dim);}
+.vpm-val{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;color:var(--yellow);}
+
+/* RIGHT CHAT */
+#chat{display:flex;flex-direction:column;background:var(--panel);overflow:hidden;}
+#ca{flex:1;overflow-y:auto;padding:16px 13px;display:flex;flex-direction:column;gap:13px;min-height:0;scroll-behavior:smooth;}
+#ca::-webkit-scrollbar{width:3px;}
+#ca::-webkit-scrollbar-thumb{background:var(--bhi);border-radius:2px;}
+.mr{display:flex;gap:8px;animation:fu .25s ease;}
+@keyframes fu{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.mr.user{flex-direction:row-reverse;}
+.av{width:29px;height:29px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;margin-top:2px;}
+.av.ai{background:linear-gradient(135deg,var(--blue),var(--cyan));}
+.av.user{background:var(--input);}
+.bu{padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.65;max-width:calc(100% - 40px);}
+.bu.ai{background:var(--ai);border:1px solid var(--border);border-top-left-radius:3px;}
+.bu.user{background:var(--user);border:1px solid #1a3560;border-top-right-radius:3px;}
+.typ{display:flex;gap:4px;padding:3px 0;}
+.typ span{width:6px;height:6px;background:var(--blue);border-radius:50%;animation:bo 1.2s infinite;}
+.typ span:nth-child(2){animation-delay:.2s}.typ span:nth-child(3){animation-delay:.4s}
+@keyframes bo{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}
+.chip{padding:5px 11px;background:var(--input);border:1px solid var(--bhi);border-radius:16px;font-size:12px;cursor:pointer;transition:all .2s;color:var(--text);font-family:'Noto Sans KR',sans-serif;}
+.chip:hover{background:rgba(59,130,246,.1);border-color:var(--blue);color:var(--blue);}
+.mini-spec{background:var(--card);border:1px solid var(--bhi);border-radius:10px;padding:10px 12px;margin-top:8px;}
+.ms-title{font-size:12px;font-weight:700;color:var(--cyan);margin-bottom:7px;}
+.ms-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px;}
+.ms-row:last-child{border-bottom:none;}
+.ms-k{color:var(--dim);}.ms-v{font-family:'JetBrains Mono',monospace;font-size:10px;}
+.ms-total{display:flex;justify-content:space-between;padding:7px 0 0;margin-top:4px;font-size:13px;font-weight:700;}
+.ms-warn{font-size:11px;margin-top:6px;padding:7px 10px;border-radius:7px;line-height:1.5;}
+.ms-warn.over{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);color:#fca5a5;}
+.ms-warn.ok{background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);color:#6ee7b7;}
+.ms-alt{font-size:10px;color:var(--yellow);margin-top:6px;}
+#ia{flex-shrink:0;padding:11px 13px;background:rgba(7,11,20,.92);border-top:1px solid var(--border);}
+.iw{display:flex;gap:8px;align-items:flex-end;}
+#ui{flex:1;background:var(--input);border:1px solid var(--bhi);border-radius:11px;padding:10px 13px;color:var(--text);font-size:13px;font-family:'Noto Sans KR',sans-serif;resize:none;outline:none;min-height:42px;max-height:110px;line-height:1.5;transition:border-color .2s;}
+#ui::placeholder{color:var(--muted);}
+#ui:focus{border-color:var(--blue);}
+#sb{width:42px;height:42px;background:linear-gradient(135deg,var(--blue),var(--cyan));border:none;border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .2s;box-shadow:0 0 12px rgba(59,130,246,.3);flex-shrink:0;color:white;}
+#sb:hover{transform:scale(1.05);}
+#sb:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+@media(max-width:800px){#main{grid-template-columns:1fr;grid-template-rows:1fr 1fr;}#dash{border-right:none;border-bottom:1px solid var(--border);}}
+</style>
+</head>
+<body>
+<div id="hdr">
+  <div class="hlogo">💻</div>
+  <div><div class="htitle">PC 사양 추천 AI</div><div class="hsub">벤치마크 랭킹 · 실시간 가격 조회 · 구매링크</div></div>
+  <div class="hstat"><div class="hdot"></div><span>온라인</span></div>
+  <button class="hrst" onclick="resetAll()">↺ 새 대화</button>
+</div>
+
+<div id="main">
+  <!-- LEFT: DASHBOARD -->
+  <div id="dash">
+    <div id="tabs">
+      <div class="tab active" onclick="switchTab('price')">💰 견적·가격</div>
+      <div class="tab" onclick="switchTab('cpu')">🔲 CPU 랭킹</div>
+      <div class="tab" onclick="switchTab('gpu')">🎮 GPU 랭킹</div>
+    </div>
+
+    <!-- Price Tab -->
+    <div class="tab-content active" id="tab-price">
+      <div class="empty" id="priceEmpty">
+        <div class="empty-icon">💰</div>
+        <p>AI와 대화하면<br>실시간으로 가격을 조회하고<br>예산 대비 견적을 보여드립니다</p>
+      </div>
+    </div>
+
+    <!-- CPU Ranking Tab (always visible) -->
+    <div class="tab-content" id="tab-cpu"></div>
+
+    <!-- GPU Ranking Tab (always visible) -->
+    <div class="tab-content" id="tab-gpu"></div>
+  </div>
+
+  <!-- RIGHT: CHAT -->
+  <div id="chat">
+    <div id="ca"></div>
+    <div id="ia"><div class="iw">
+      <textarea id="ui" placeholder="사용 목적, 예산, 선호사항을 말씀해 주세요..." rows="1"
+        onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button id="sb" onclick="sendMsg()">➤</button>
+    </div></div>
+  </div>
+</div>
+
+<script>
+/* ════════════ BENCHMARK DATA ════════════ */
+/* 기준: Cinebench R23 (공식), 3DMark (공식), 게임 FPS = 주요 타이틀 평균 */
+const CPU_RANK = [
+  // ── 플래그십 (멀티코어 최강) ──
+  {name:'Ryzen 9 9950X',    short:'R9 9950X',    cb_mt:50000,cb_st:2350,pm:72000,tdp:170,tier:'플래그십',    brand:'amd'},
+  {name:'Ryzen 9 9950X3D',  short:'R9 9950X3D',  cb_mt:48000,cb_st:2300,pm:70000,tdp:170,tier:'게이밍 플래그십',brand:'amd'},
+  {name:'Core Ultra 9 285K',short:'i9 285K',      cb_mt:43000,cb_st:2050,pm:65000,tdp:125,tier:'플래그십',    brand:'intel'},
+  {name:'Core i9-14900KS',  short:'i9-14900KS',  cb_mt:42000,cb_st:2380,pm:64000,tdp:150,tier:'플래그십',    brand:'intel'},
+  {name:'Core i9-14900K',   short:'i9-14900K',   cb_mt:41000,cb_st:2300,pm:63000,tdp:125,tier:'플래그십',    brand:'intel'},
+  {name:'Core i9-14900KF',  short:'i9-14900KF',  cb_mt:41000,cb_st:2300,pm:63000,tdp:125,tier:'플래그십',    brand:'intel'},
+  {name:'Ryzen 9 9900X',    short:'R9 9900X',    cb_mt:40000,cb_st:2280,pm:60000,tdp:120,tier:'플래그십',    brand:'amd'},
+  {name:'Ryzen 9 7950X3D',  short:'R9 7950X3D',  cb_mt:47000,cb_st:2150,pm:66000,tdp:120,tier:'플래그십',    brand:'amd'},
+  {name:'Ryzen 9 7950X',    short:'R9 7950X',    cb_mt:48000,cb_st:2100,pm:68000,tdp:170,tier:'플래그십',    brand:'amd'},
+  {name:'Core i9-13900KS',  short:'i9-13900KS',  cb_mt:40500,cb_st:2320,pm:61000,tdp:150,tier:'플래그십',    brand:'intel'},
+  {name:'Core i9-13900K',   short:'i9-13900K',   cb_mt:40000,cb_st:2200,pm:60000,tdp:125,tier:'플래그십',    brand:'intel'},
+  {name:'Core i9-13900KF',  short:'i9-13900KF',  cb_mt:40000,cb_st:2200,pm:60000,tdp:125,tier:'플래그십',    brand:'intel'},
+  {name:'Ryzen 9 7900X',    short:'R9 7900X',    cb_mt:29000,cb_st:2080,pm:47000,tdp:170,tier:'하이엔드',    brand:'amd'},
+  {name:'Ryzen 9 7900X3D',  short:'R9 7900X3D',  cb_mt:28500,cb_st:2060,pm:46000,tdp:120,tier:'하이엔드',    brand:'amd'},
+  {name:'Ryzen 9 7900',     short:'R9 7900',     cb_mt:26000,cb_st:1980,pm:42000,tdp:65, tier:'하이엔드',    brand:'amd'},
+  // ── 하이엔드 ──
+  {name:'Core Ultra 7 265K',short:'i7 265K',      cb_mt:35000,cb_st:1950,pm:54000,tdp:125,tier:'하이엔드',    brand:'intel'},
+  {name:'Core Ultra 7 265KF',short:'i7 265KF',    cb_mt:35000,cb_st:1950,pm:54000,tdp:125,tier:'하이엔드',    brand:'intel'},
+  {name:'Core i7-14700K',   short:'i7-14700K',   cb_mt:34000,cb_st:2150,pm:52000,tdp:125,tier:'하이엔드',    brand:'intel'},
+  {name:'Core i7-14700KF',  short:'i7-14700KF',  cb_mt:34000,cb_st:2150,pm:52000,tdp:125,tier:'하이엔드',    brand:'intel'},
+  {name:'Core i7-13700K',   short:'i7-13700K',   cb_mt:33000,cb_st:2100,pm:50000,tdp:125,tier:'하이엔드',    brand:'intel'},
+  {name:'Core i7-13700KF',  short:'i7-13700KF',  cb_mt:33000,cb_st:2100,pm:50000,tdp:125,tier:'하이엔드',    brand:'intel'},
+  {name:'Ryzen 7 9800X3D',  short:'R7 9800X3D',  cb_mt:28000,cb_st:2280,pm:47000,tdp:120,tier:'게이밍 특화', brand:'amd'},
+  {name:'Ryzen 7 9700X',    short:'R7 9700X',    cb_mt:27000,cb_st:2250,pm:44000,tdp:65, tier:'하이엔드',    brand:'amd'},
+  {name:'Ryzen 7 9700',     short:'R7 9700',     cb_mt:26500,cb_st:2200,pm:43000,tdp:65, tier:'하이엔드',    brand:'amd'},
+  {name:'Ryzen 7 7800X3D',  short:'R7 7800X3D',  cb_mt:24000,cb_st:1980,pm:38000,tdp:120,tier:'게이밍 특화', brand:'amd'},
+  {name:'Ryzen 7 7700X',    short:'R7 7700X',    cb_mt:24500,cb_st:2080,pm:38000,tdp:105,tier:'하이엔드',    brand:'amd'},
+  {name:'Ryzen 7 7700',     short:'R7 7700',     cb_mt:23000,cb_st:1980,pm:36000,tdp:65, tier:'하이엔드',    brand:'amd'},
+  {name:'Core i7-14700',    short:'i7-14700',    cb_mt:28000,cb_st:1980,pm:44000,tdp:65, tier:'하이엔드',    brand:'intel'},
+  {name:'Core i7-13700',    short:'i7-13700',    cb_mt:27000,cb_st:1900,pm:42000,tdp:65, tier:'하이엔드',    brand:'intel'},
+  // ── 미드레인지 ──
+  {name:'Core Ultra 5 245K',short:'i5 245K',      cb_mt:25000,cb_st:1900,pm:39000,tdp:125,tier:'미드레인지',  brand:'intel'},
+  {name:'Core Ultra 5 245KF',short:'i5 245KF',    cb_mt:25000,cb_st:1900,pm:39000,tdp:125,tier:'미드레인지',  brand:'intel'},
+  {name:'Core i5-14600K',   short:'i5-14600K',   cb_mt:24000,cb_st:2050,pm:38000,tdp:125,tier:'미드레인지',  brand:'intel'},
+  {name:'Core i5-14600KF',  short:'i5-14600KF',  cb_mt:24000,cb_st:2050,pm:38000,tdp:125,tier:'미드레인지',  brand:'intel'},
+  {name:'Core i5-13600K',   short:'i5-13600K',   cb_mt:23500,cb_st:1980,pm:36000,tdp:125,tier:'미드레인지',  brand:'intel'},
+  {name:'Core i5-13600KF',  short:'i5-13600KF',  cb_mt:23500,cb_st:1980,pm:36000,tdp:125,tier:'미드레인지',  brand:'intel'},
+  {name:'Ryzen 5 9600X',    short:'R5 9600X',    cb_mt:18500,cb_st:2200,pm:32000,tdp:65, tier:'미드레인지',  brand:'amd'},
+  {name:'Ryzen 5 9600',     short:'R5 9600',     cb_mt:17500,cb_st:2150,pm:30000,tdp:65, tier:'미드레인지',  brand:'amd'},
+  {name:'Ryzen 5 7600X',    short:'R5 7600X',    cb_mt:17000,cb_st:2050,pm:27000,tdp:105,tier:'미드레인지',  brand:'amd'},
+  {name:'Ryzen 5 7600',     short:'R5 7600',     cb_mt:16500,cb_st:1980,pm:26000,tdp:65, tier:'미드레인지',  brand:'amd'},
+  {name:'Core i5-14600',    short:'i5-14600',    cb_mt:19000,cb_st:1800,pm:29000,tdp:65, tier:'미드레인지',  brand:'intel'},
+  {name:'Core i5-14500',    short:'i5-14500',    cb_mt:18000,cb_st:1750,pm:27000,tdp:65, tier:'미드레인지',  brand:'intel'},
+  {name:'Core i5-13500',    short:'i5-13500',    cb_mt:17500,cb_st:1750,pm:26500,tdp:65, tier:'미드레인지',  brand:'intel'},
+  {name:'Core i5-13400',    short:'i5-13400',    cb_mt:19500,cb_st:1780,pm:28000,tdp:65, tier:'미드레인지',  brand:'intel'},
+  {name:'Core i5-13400F',   short:'i5-13400F',   cb_mt:19500,cb_st:1780,pm:28000,tdp:65, tier:'미드레인지',  brand:'intel'},
+  {name:'Ryzen 5 7500F',    short:'R5 7500F',    cb_mt:15500,cb_st:1850,pm:24000,tdp:65, tier:'미드레인지',  brand:'amd'},
+  {name:'Ryzen 5 8600G',    short:'R5 8600G',    cb_mt:15000,cb_st:1900,pm:23000,tdp:65, tier:'미드레인지',  brand:'amd'},
+  // ── 메인스트림 ──
+  {name:'Core i5-12600K',   short:'i5-12600K',   cb_mt:20000,cb_st:1920,pm:31000,tdp:125,tier:'메인스트림',  brand:'intel'},
+  {name:'Core i5-12600KF',  short:'i5-12600KF',  cb_mt:20000,cb_st:1920,pm:31000,tdp:125,tier:'메인스트림',  brand:'intel'},
+  {name:'Core i5-12400',    short:'i5-12400',    cb_mt:16000,cb_st:1700,pm:22000,tdp:65, tier:'메인스트림',  brand:'intel'},
+  {name:'Core i5-12400F',   short:'i5-12400F',   cb_mt:16000,cb_st:1700,pm:22000,tdp:65, tier:'메인스트림',  brand:'intel'},
+  {name:'Ryzen 5 5600X',    short:'R5 5600X',    cb_mt:13500,cb_st:1750,pm:20000,tdp:65, tier:'메인스트림',  brand:'amd'},
+  {name:'Ryzen 5 5600',     short:'R5 5600',     cb_mt:13000,cb_st:1700,pm:19500,tdp:65, tier:'메인스트림',  brand:'amd'},
+  {name:'Ryzen 5 5600G',    short:'R5 5600G',    cb_mt:12000,cb_st:1600,pm:18000,tdp:65, tier:'메인스트림',  brand:'amd'},
+  {name:'Core i5-11600K',   short:'i5-11600K',   cb_mt:13000,cb_st:1700,pm:19000,tdp:125,tier:'메인스트림',  brand:'intel'},
+  {name:'Core i3-14100',    short:'i3-14100',    cb_mt:9500, cb_st:1750,pm:14000,tdp:60, tier:'보급형',      brand:'intel'},
+  {name:'Core i3-14100F',   short:'i3-14100F',   cb_mt:9500, cb_st:1750,pm:14000,tdp:58, tier:'보급형',      brand:'intel'},
+  {name:'Core i3-13100',    short:'i3-13100',    cb_mt:9200, cb_st:1720,pm:13500,tdp:60, tier:'보급형',      brand:'intel'},
+  {name:'Core i3-13100F',   short:'i3-13100F',   cb_mt:9200, cb_st:1720,pm:13500,tdp:58, tier:'보급형',      brand:'intel'},
+  {name:'Ryzen 5 4600G',    short:'R5 4600G',    cb_mt:10500,cb_st:1450,pm:15000,tdp:65, tier:'보급형',      brand:'amd'},
+  {name:'Ryzen 3 4300G',    short:'R3 4300G',    cb_mt:7000, cb_st:1350,pm:10500,tdp:65, tier:'보급형',      brand:'amd'},
+  // ── 워크스테이션/HEDT ──
+  {name:'Ryzen Threadripper 7980X', short:'TR 7980X',   cb_mt:110000,cb_st:2200,pm:140000,tdp:350,tier:'워크스테이션', brand:'amd'},
+  {name:'Ryzen Threadripper 7970X', short:'TR 7970X',   cb_mt:95000, cb_st:2200,pm:120000,tdp:350,tier:'워크스테이션', brand:'amd'},
+  {name:'Ryzen Threadripper 7960X', short:'TR 7960X',   cb_mt:78000, cb_st:2200,pm:100000,tdp:350,tier:'워크스테이션', brand:'amd'},
+  {name:'Core i9-14900X',  short:'i9-14900X',   cb_mt:44000, cb_st:2000,pm:62000, tdp:125,tier:'하이엔드HEDT', brand:'intel'},
+  {name:'Core i9-13980HX', short:'i9-13980HX',  cb_mt:29000, cb_st:1920,pm:45000, tdp:55, tier:'노트북 플래그십', brand:'intel'},
+  {name:'Core i9-14900HX', short:'i9-14900HX',  cb_mt:30000, cb_st:2000,pm:47000, tdp:55, tier:'노트북 플래그십', brand:'intel'},
+  {name:'Ryzen 9 7945HX',  short:'R9 7945HX',   cb_mt:28000, cb_st:1950,pm:43000, tdp:55, tier:'노트북 플래그십', brand:'amd'},
+  {name:'Ryzen 9 8945HS',  short:'R9 8945HS',   cb_mt:22000, cb_st:1950,pm:35000, tdp:45, tier:'노트북 하이엔드', brand:'amd'},
+  {name:'Core Ultra 9 185H',short:'i9 185H',     cb_mt:24000, cb_st:1950,pm:37000, tdp:45, tier:'노트북 하이엔드', brand:'intel'},
+  {name:'Core Ultra 7 155H',short:'i7 155H',     cb_mt:18000, cb_st:1850,pm:28000, tdp:28, tier:'노트북 미드',   brand:'intel'},
+  {name:'Ryzen 7 7745HX',  short:'R7 7745HX',   cb_mt:21000, cb_st:1900,pm:33000, tdp:55, tier:'노트북 하이엔드', brand:'amd'},
+  {name:'Ryzen 7 8845HS',  short:'R7 8845HS',   cb_mt:19000, cb_st:1900,pm:30000, tdp:45, tier:'노트북 하이엔드', brand:'amd'},
+  {name:'Core i7-13700H',  short:'i7-13700H',   cb_mt:17000, cb_st:1800,pm:26000, tdp:45, tier:'노트북 미드',   brand:'intel'},
+  {name:'Core i5-13500H',  short:'i5-13500H',   cb_mt:14000, cb_st:1700,pm:21000, tdp:45, tier:'노트북 보급형', brand:'intel'},
+  {name:'Ryzen 5 7535HS',  short:'R5 7535HS',   cb_mt:13000, cb_st:1700,pm:19000, tdp:35, tier:'노트북 보급형', brand:'amd'},
+  {name:'Apple M4 Pro',    short:'M4 Pro',      cb_mt:24000, cb_st:3900,pm:38000, tdp:30, tier:'Apple Silicon', brand:'apple'},
+  {name:'Apple M4',        short:'M4',          cb_mt:16000, cb_st:3850,pm:25000, tdp:20, tier:'Apple Silicon', brand:'apple'},
+  {name:'Apple M3 Pro',    short:'M3 Pro',      cb_mt:20000, cb_st:3700,pm:32000, tdp:30, tier:'Apple Silicon', brand:'apple'},
+  {name:'Apple M3',        short:'M3',          cb_mt:13000, cb_st:3600,pm:20000, tdp:20, tier:'Apple Silicon', brand:'apple'},
+  {name:'Apple M2 Pro',    short:'M2 Pro',      cb_mt:15000, cb_st:2700,pm:24000, tdp:30, tier:'Apple Silicon', brand:'apple'},
+  {name:'Ryzen 5 7530U',   short:'R5 7530U',   cb_mt:11000, cb_st:1600,pm:16000, tdp:15, tier:'노트북 보급형', brand:'amd'},
+  {name:'Core i5-1335U',   short:'i5-1335U',   cb_mt:10500, cb_st:1650,pm:15500, tdp:15, tier:'노트북 보급형', brand:'intel'},
+  {name:'Core i7-1355U',   short:'i7-1355U',   cb_mt:12000, cb_st:1750,pm:18000, tdp:15, tier:'노트북 미드',   brand:'intel'},
+  {name:'Ryzen 5 7520U',   short:'R5 7520U',   cb_mt:8500,  cb_st:1450,pm:12500, tdp:15, tier:'노트북 보급형', brand:'amd'},
+  {name:'Core i3-1215U',   short:'i3-1215U',   cb_mt:7800,  cb_st:1500,pm:11500, tdp:15, tier:'노트북 보급형', brand:'intel'},
+];
+
+const GPU_RANK = [
+  // ── RTX 50 Series ──
+  {name:'RTX 5090',          short:'5090',     fs:70000,ts:35000,fps4k:210,fps1440:280,vram:32,tier:'울트라',       brand:'nvidia'},
+  {name:'RTX 5080',          short:'5080',     fs:55000,ts:26000,fps4k:160,fps1440:220,vram:16,tier:'하이엔드',     brand:'nvidia'},
+  {name:'RTX 5070 Ti',       short:'5070Ti',   fs:47000,ts:22000,fps4k:130,fps1440:190,vram:16,tier:'하이엔드',     brand:'nvidia'},
+  {name:'RTX 5070',          short:'5070',     fs:40000,ts:18500,fps4k:105,fps1440:160,vram:12,tier:'미드-하이',    brand:'nvidia'},
+  {name:'RTX 5060 Ti',       short:'5060Ti',   fs:32000,ts:14000,fps4k:78, fps1440:125,vram:16,tier:'미드레인지',   brand:'nvidia'},
+  {name:'RTX 5060',          short:'5060',     fs:26000,ts:11500,fps4k:58, fps1440:100,vram:8, tier:'보급형',       brand:'nvidia'},
+  // ── RTX 40 Series ──
+  {name:'RTX 4090',          short:'4090',     fs:60000,ts:30000,fps4k:185,fps1440:250,vram:24,tier:'플래그십',     brand:'nvidia'},
+  {name:'RTX 4080 Super',    short:'4080S',    fs:50000,ts:24000,fps4k:148,fps1440:205,vram:16,tier:'하이엔드',     brand:'nvidia'},
+  {name:'RTX 4080',          short:'4080',     fs:48000,ts:23000,fps4k:140,fps1440:195,vram:16,tier:'하이엔드',     brand:'nvidia'},
+  {name:'RTX 4070 Ti Super', short:'4070TiS',  fs:43000,ts:20000,fps4k:118,fps1440:175,vram:16,tier:'하이엔드',     brand:'nvidia'},
+  {name:'RTX 4070 Ti',       short:'4070Ti',   fs:40000,ts:18500,fps4k:108,fps1440:162,vram:12,tier:'하이엔드',     brand:'nvidia'},
+  {name:'RTX 4070 Super',    short:'4070S',    fs:37000,ts:17000,fps4k:95, fps1440:148,vram:12,tier:'미드-하이',    brand:'nvidia'},
+  {name:'RTX 4070',          short:'4070',     fs:33000,ts:15000,fps4k:82, fps1440:130,vram:12,tier:'미드레인지',   brand:'nvidia'},
+  {name:'RTX 4060 Ti 16GB',  short:'4060Ti16', fs:28000,ts:12500,fps4k:65, fps1440:112,vram:16,tier:'미드레인지',   brand:'nvidia'},
+  {name:'RTX 4060 Ti',       short:'4060Ti',   fs:27000,ts:12000,fps4k:62, fps1440:108,vram:8, tier:'미드레인지',   brand:'nvidia'},
+  {name:'RTX 4060',          short:'4060',     fs:22000,ts:9500, fps4k:48, fps1440:88, vram:8, tier:'보급형',       brand:'nvidia'},
+  {name:'RTX 4050 (노트북)', short:'4050M',    fs:16000,ts:7000, fps4k:35, fps1440:65, vram:6, tier:'노트북 보급형',brand:'nvidia'},
+  // ── RTX 30 Series ──
+  {name:'RTX 3090 Ti',       short:'3090Ti',   fs:50000,ts:22000,fps4k:130,fps1440:175,vram:24,tier:'레거시 하이엔드',brand:'nvidia'},
+  {name:'RTX 3090',          short:'3090',     fs:46000,ts:20000,fps4k:118,fps1440:160,vram:24,tier:'레거시 하이엔드',brand:'nvidia'},
+  {name:'RTX 3080 Ti',       short:'3080Ti',   fs:44000,ts:19000,fps4k:110,fps1440:152,vram:12,tier:'레거시 하이엔드',brand:'nvidia'},
+  {name:'RTX 3080 12GB',     short:'3080-12',  fs:42000,ts:18000,fps4k:105,fps1440:148,vram:12,tier:'레거시 하이엔드',brand:'nvidia'},
+  {name:'RTX 3080',          short:'3080',     fs:38000,ts:16500,fps4k:95, fps1440:138,vram:10,tier:'레거시 하이엔드',brand:'nvidia'},
+  {name:'RTX 3070 Ti',       short:'3070Ti',   fs:32000,ts:13500,fps4k:72, fps1440:118,vram:8, tier:'레거시 미드',  brand:'nvidia'},
+  {name:'RTX 3070',          short:'3070',     fs:30000,ts:12800,fps4k:65, fps1440:110,vram:8, tier:'레거시 미드',  brand:'nvidia'},
+  {name:'RTX 3060 Ti',       short:'3060Ti',   fs:26000,ts:10800,fps4k:54, fps1440:95, vram:8, tier:'레거시 미드',  brand:'nvidia'},
+  {name:'RTX 3060',          short:'3060',     fs:20000,ts:8500, fps4k:42, fps1440:78, vram:12,tier:'레거시 보급형',brand:'nvidia'},
+  {name:'RTX 3050',          short:'3050',     fs:14000,ts:6000, fps4k:28, fps1440:55, vram:8, tier:'레거시 보급형',brand:'nvidia'},
+  // ── AMD RX 7000 Series ──
+  {name:'RX 7900 XTX',       short:'7900XTX',  fs:55000,ts:25000,fps4k:155,fps1440:210,vram:24,tier:'플래그십',     brand:'amd'},
+  {name:'RX 7900 XT',        short:'7900XT',   fs:48000,ts:22000,fps4k:135,fps1440:185,vram:20,tier:'하이엔드',     brand:'amd'},
+  {name:'RX 7900 GRE',       short:'7900GRE',  fs:44000,ts:19500,fps4k:120,fps1440:168,vram:16,tier:'하이엔드',     brand:'amd'},
+  {name:'RX 7800 XT',        short:'7800XT',   fs:34000,ts:14500,fps4k:80, fps1440:135,vram:16,tier:'미드레인지',   brand:'amd'},
+  {name:'RX 7700 XT',        short:'7700XT',   fs:27000,ts:11500,fps4k:62, fps1440:108,vram:12,tier:'미드레인지',   brand:'amd'},
+  {name:'RX 7600 XT',        short:'7600XT',   fs:24000,ts:10000,fps4k:52, fps1440:92, vram:16,tier:'미드레인지',   brand:'amd'},
+  {name:'RX 7600',           short:'7600',     fs:21000,ts:9000, fps4k:44, fps1440:82, vram:8, tier:'보급형',       brand:'amd'},
+  // ── AMD RX 6000 Series ──
+  {name:'RX 6950 XT',        short:'6950XT',   fs:48000,ts:18500,fps4k:118,fps1440:162,vram:16,tier:'레거시 하이엔드',brand:'amd'},
+  {name:'RX 6900 XT',        short:'6900XT',   fs:46000,ts:17500,fps4k:112,fps1440:155,vram:16,tier:'레거시 하이엔드',brand:'amd'},
+  {name:'RX 6800 XT',        short:'6800XT',   fs:40000,ts:15500,fps4k:98, fps1440:142,vram:16,tier:'레거시 하이엔드',brand:'amd'},
+  {name:'RX 6800',           short:'6800',     fs:36000,ts:14000,fps4k:88, fps1440:130,vram:16,tier:'레거시 하이엔드',brand:'amd'},
+  {name:'RX 6750 XT',        short:'6750XT',   fs:32000,ts:12500,fps4k:72, fps1440:118,vram:12,tier:'레거시 미드',  brand:'amd'},
+  {name:'RX 6700 XT',        short:'6700XT',   fs:30000,ts:11500,fps4k:68, fps1440:112,vram:12,tier:'레거시 미드',  brand:'amd'},
+  {name:'RX 6700',           short:'6700',     fs:26000,ts:10000,fps4k:58, fps1440:98, vram:10,tier:'레거시 미드',  brand:'amd'},
+  {name:'RX 6650 XT',        short:'6650XT',   fs:24000,ts:9200, fps4k:52, fps1440:90, vram:8, tier:'레거시 보급형',brand:'amd'},
+  {name:'RX 6600 XT',        short:'6600XT',   fs:22000,ts:8500, fps4k:46, fps1440:84, vram:8, tier:'레거시 보급형',brand:'amd'},
+  {name:'RX 6600',           short:'6600',     fs:20000,ts:7800, fps4k:42, fps1440:78, vram:8, tier:'레거시 보급형',brand:'amd'},
+  {name:'RX 6500 XT',        short:'6500XT',   fs:12000,ts:4800, fps4k:22, fps1440:45, vram:4, tier:'레거시 보급형',brand:'amd'},
+  // ── Intel Arc ──
+  {name:'Intel Arc A770 16GB',short:'A770',    fs:22000,ts:9200, fps4k:45, fps1440:82, vram:16,tier:'인텔 미드',    brand:'intel'},
+  {name:'Intel Arc A750',    short:'A750',     fs:18000,ts:7500, fps4k:38, fps1440:70, vram:8, tier:'인텔 미드',    brand:'intel'},
+  {name:'Intel Arc A580',    short:'A580',     fs:15000,ts:6200, fps4k:30, fps1440:58, vram:8, tier:'인텔 보급형',  brand:'intel'},
+  {name:'Intel Arc B580',    short:'B580',     fs:24000,ts:10500,fps4k:52, fps1440:92, vram:12,tier:'인텔 미드',    brand:'intel'},
+  {name:'Intel Arc B570',    short:'B570',     fs:20000,ts:8800, fps4k:44, fps1440:80, vram:10,tier:'인텔 미드',    brand:'intel'},
+  // ── 노트북 GPU ──
+  {name:'RTX 4090 (노트북)', short:'4090M',    fs:42000,ts:18000,fps4k:100,fps1440:148,vram:16,tier:'노트북 플래그십',brand:'nvidia'},
+  {name:'RTX 4080 (노트북)', short:'4080M',    fs:36000,ts:15000,fps4k:85, fps1440:130,vram:12,tier:'노트북 하이엔드',brand:'nvidia'},
+  {name:'RTX 4070 (노트북)', short:'4070M',    fs:28000,ts:12000,fps4k:65, fps1440:108,vram:8, tier:'노트북 미드',  brand:'nvidia'},
+  {name:'RTX 4060 (노트북)', short:'4060M',    fs:22000,ts:9200, fps4k:48, fps1440:88, vram:8, tier:'노트북 미드',  brand:'nvidia'},
+  {name:'RX 7900M',          short:'7900M',    fs:38000,ts:16000,fps4k:90, fps1440:138,vram:16,tier:'노트북 하이엔드',brand:'amd'},
+  {name:'RX 7700S',          short:'7700S',    fs:20000,ts:8200, fps4k:42, fps1440:78, vram:8, tier:'노트북 미드',  brand:'amd'},
+  {name:'RTX 5090 (노트북)', short:'5090M',    fs:50000,ts:22000,fps4k:130,fps1440:185,vram:24,tier:'노트북 플래그십',brand:'nvidia'},
+  {name:'RTX 5080 (노트북)', short:'5080M',    fs:42000,ts:18500,fps4k:108,fps1440:160,vram:16,tier:'노트북 하이엔드',brand:'nvidia'},
+  {name:'RTX 5070 (노트북)', short:'5070M',    fs:34000,ts:14500,fps4k:82, fps1440:130,vram:8, tier:'노트북 미드',  brand:'nvidia'},
+  {name:'RTX 5060 (노트북)', short:'5060M',    fs:24000,ts:10200,fps4k:54, fps1440:96, vram:8, tier:'노트북 보급형',brand:'nvidia'},
+  {name:'AMD Radeon 890M',   short:'Radeon890M',fs:5500,ts:2200, fps4k:12, fps1440:28, vram:4, tier:'내장그래픽',  brand:'amd'},
+  {name:'Intel Arc 140V',    short:'Arc140V',  fs:8000, ts:3200, fps4k:18, fps1440:38, vram:8, tier:'내장그래픽',  brand:'intel'},
+];
+
+/* 가격 DB (2025.06 다나와 평균가 KRW) */
+const PDB = {
+  'ryzen 9 9950x':720000,'ryzen 9 9900x':580000,
+  'core ultra 9 285k':610000,'core i9-14900k':555000,'core i9-14900kf':525000,
+  'core ultra 7 265k':480000,'core i7-14700k':415000,'core i7-14700kf':395000,
+  'ryzen 7 9800x3d':548000,'ryzen 7 9700x':418000,
+  'core ultra 5 245k':338000,'core i5-14600k':288000,'core i5-14600kf':268000,
+  'ryzen 7 7800x3d':468000,'ryzen 7 7700x':358000,
+  'ryzen 5 9600x':298000,'core i5-13400':198000,
+  'ryzen 5 7600x':252000,'ryzen 5 7600':222000,'core i5-12400':172000,
+  'rtx 5090':2800000,'rtx 5080':1800000,
+  'rtx 4090':2080000,'rx 7900 xtx':1045000,
+  'rtx 4080 super':1348000,'rtx 4080':1248000,'rx 7900 xt':875000,
+  'rtx 5070 ti':1248000,
+  'rtx 4070 ti super':998000,'rtx 4070 ti':895000,'rtx 5070':898000,
+  'rtx 4070 super':748000,'rtx 4070':618000,'rx 7800 xt':552000,
+  'rtx 5060 ti':648000,'rtx 4060 ti':488000,'rx 7700 xt':412000,
+  'rtx 5060':478000,'rtx 4060':368000,'rx 7600':272000,
+  'ddr5 32gb':118000,'ddr5 16gb':62000,'ddr5 64gb':235000,
+  'ddr4 32gb':78000,'ddr4 16gb':42000,
+  '990 pro 2tb':175000,'990 pro 1tb':105000,'sn850x 2tb':168000,'sn850x 1tb':98000,
+  'sn770 2tb':128000,'sn770 1tb':78000,'980 pro 2tb':155000,'980 pro 1tb':92000,
+  'p44 pro 2tb':138000,'p44 pro 1tb':84000,
+  '850w 80+ gold':118000,'750w 80+ gold':92000,'1000w 80+ gold':158000,
+  '650w 80+ gold':75000,'850w 80+ platinum':158000,'750w 80+ platinum':128000,
+  'lian li o11 dynamic evo':178000,'lian li lancool 216':115000,'nzxt h7 flow':158000,
+  'fractal define 7':178000,'fractal meshify 2':168000,'fractal torrent':195000,
+  'cooler master td500 mesh':118000,'be quiet pure base 500dx':128000,
+  'corsair 4000d':128000,'deepcool ch510':98000,'antec p120':88000,
+};
+
+function findPrice(q) {
+  if (!q) return null;
+  const s = q.toLowerCase().replace(/[^\w\s가-힣]/g,' ').replace(/\s+/g,' ').trim();
+  if (PDB[s]) return PDB[s];
+  let best = null, bl = 0;
+  for (const [k, v] of Object.entries(PDB)) {
+    const kw = k.split(' ');
+    if (kw.every(w => s.includes(w)) && k.length > bl) { best = v; bl = k.length; }
+  }
+  if (!best) {
+    for (const [k, v] of Object.entries(PDB)) {
+      const kw = k.split(' ');
+      const hits = kw.filter(w => s.includes(w));
+      if (hits.length >= Math.max(2, kw.length - 1) && k.length > bl) { best = v; bl = k.length; }
+    }
+  }
+  return best;
+}
+
+function findCpuBench(q) {
+  if (!q) return null;
+  const s = q.toLowerCase();
+  return CPU_RANK.find(c => s.includes(c.name.toLowerCase()) || c.name.toLowerCase().split(' ').every(w => s.includes(w))) || null;
+}
+function findGpuBench(q) {
+  if (!q) return null;
+  const s = q.toLowerCase();
+  return GPU_RANK.find(g => s.includes(g.name.toLowerCase()) || g.name.toLowerCase().split(' ').every(w => s.includes(w))) || null;
+}
+
+function won(n) {
+  if (!n) return '—';
+  if (n >= 1000000) return `${(n/10000000<1?(n/10000).toFixed(0)+'만':'약 '+(n/1000000).toFixed(1)+'백만')}원`;
+  return `${Math.round(n/10000)}만원`;
+}
+function won2(n){
+  if(!n)return'—';
+  const v=Math.round(n/10000);
+  return`${v.toLocaleString()}만원`;
+}
+
+function sc(v,max){const r=v/max;return r>=.85?'var(--green)':r>=.65?'var(--blue)':r>=.45?'var(--yellow)':'var(--red)';}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function dn(q){return`https://search.danawa.com/dsearch.php?query=${encodeURIComponent(q)}`;}
+function nv(q){return`https://search.shopping.naver.com/search/all?query=${encodeURIComponent(q)}`;}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['price','cpu','gpu'][i]===name));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+}
+
+/* ── Render CPU ranking table ── */
+let recCpu = null, recGpu = null;
+
+function renderCpuTab() {
+  const el = document.getElementById('tab-cpu');
+  const maxMT = CPU_RANK[0].cb_mt;
+  const rows = CPU_RANK.map((c, i) => {
+    const isRec = recCpu && (c.name.toLowerCase() === recCpu.toLowerCase() || recCpu.toLowerCase().includes(c.name.toLowerCase()) || c.name.toLowerCase().includes(recCpu.toLowerCase().replace('amd ','').replace('intel ','')));
+    const p = findPrice(c.name);
+    const numCls = i===0?'gold':i===1?'silver':i===2?'bronze':'';
+    const pct = Math.round(c.cb_mt/maxMT*100);
+    const brandColor = c.brand==='amd'?'#ef4444':'#3b82f6';
+    return `<tr class="rank-row${isRec?' recommended':''}">
+      <td><div class="rk-num ${numCls}">${i+1}</div></td>
+      <td>
+        <div class="rk-name" style="color:${isRec?'var(--cyan)':'var(--text)'}">
+          ${esc(c.name)}
+          ${isRec?'<span class="rk-tag rk-badge-rec">추천</span>':''}
+          <span class="rk-tag rk-badge-tier" style="color:${brandColor};border-color:${brandColor}40;background:${brandColor}12">${c.tier}</span>
+        </div>
+      </td>
+      <td class="rk-bar-cell"><div class="rk-bar-wrap"><div class="rk-bar-fill" style="width:${pct}%;background:${sc(c.cb_mt,maxMT)}"></div></div></td>
+      <td class="rk-score" style="color:${sc(c.cb_mt,maxMT)}">${(c.cb_mt/1000).toFixed(0)}K</td>
+      <td class="rk-score" style="color:var(--dim)">${c.cb_st}</td>
+      <td class="rk-price ${p?'db':'est'}">${p?won2(p):'—'}</td>
+      <td class="rk-links">
+        <a class="rl dn" href="${dn(c.name)}" target="_blank">다나와</a>
+        <a class="rl nv" href="${nv(c.name)}" target="_blank">네이버</a>
+      </td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+  <div class="rank-section">
+    <div class="rank-title">CPU 성능 순위 — Cinebench R23 멀티코어 기준</div>
+    <table class="rank-table">
+      <thead><tr>
+        <th>#</th><th>모델명</th>
+        <th style="width:80px">성능</th>
+        <th>CB MT</th><th>CB ST</th>
+        <th>가격</th><th>구매</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="font-size:9px;color:var(--muted);margin-top:8px;font-family:'JetBrains Mono',monospace">
+      * CB MT = Cinebench R23 멀티, CB ST = 싱글코어 | 가격 = 다나와 평균가
+    </div>
+  </div>`;
+}
+
+/* ── Render GPU ranking table ── */
+function renderGpuTab() {
+  const el = document.getElementById('tab-gpu');
+  const maxFS = GPU_RANK[0].fs;
+  const rows = GPU_RANK.map((g, i) => {
+    const isRec = recGpu && (g.name.toLowerCase() === recGpu.toLowerCase() || recGpu.toLowerCase().includes(g.name.toLowerCase()) || g.name.toLowerCase().includes(recGpu.toLowerCase().replace('nvidia geforce ','').replace('amd radeon ','')));
+    const p = findPrice(g.name);
+    const numCls = i===0?'gold':i===1?'silver':i===2?'bronze':'';
+    const pct = Math.round(g.fs/maxFS*100);
+    const brandColor = g.brand==='amd'?'#ef4444':'#76ff03';
+    return `<tr class="rank-row${isRec?' recommended':''}">
+      <td><div class="rk-num ${numCls}">${i+1}</div></td>
+      <td>
+        <div class="rk-name" style="color:${isRec?'var(--cyan)':'var(--text)'}">
+          ${esc(g.name)}
+          ${isRec?'<span class="rk-tag rk-badge-rec">추천</span>':''}
+          <span class="rk-tag rk-badge-tier" style="color:${brandColor};border-color:${brandColor}40;background:${brandColor}12">${g.tier}</span>
+        </div>
+      </td>
+      <td class="rk-bar-cell"><div class="rk-bar-wrap"><div class="rk-bar-fill" style="width:${pct}%;background:${sc(g.fs,maxFS)}"></div></div></td>
+      <td class="rk-score" style="color:${sc(g.fs,maxFS)}">${(g.fs/1000).toFixed(0)}K</td>
+      <td class="rk-score" style="color:var(--dim)">${g.fps4k}</td>
+      <td class="rk-price ${p?'db':'est'}">${p?won2(p):'—'}</td>
+      <td class="rk-links">
+        <a class="rl dn" href="${dn(g.name)}" target="_blank">다나와</a>
+        <a class="rl nv" href="${nv(g.name)}" target="_blank">네이버</a>
+      </td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+  <div class="rank-section">
+    <div class="rank-title">GPU 성능 순위 — 3DMark Fire Strike 기준</div>
+    <table class="rank-table">
+      <thead><tr>
+        <th>#</th><th>모델명</th>
+        <th style="width:80px">성능</th>
+        <th>Fire Strike</th><th>4K FPS</th>
+        <th>가격</th><th>구매</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="font-size:9px;color:var(--muted);margin-top:8px;font-family:'JetBrains Mono',monospace">
+      * Fire Strike = 3DMark FS | 4K FPS = 주요 게임 평균 | 가격 = 다나와 평균가
+    </div>
+  </div>`;
+}
+
+/* ── Price tab ── */
+function renderPriceTab(data, budget) {
+  const el = document.getElementById('tab-price');
+  document.getElementById('priceEmpty').style.display = 'none';
+
+  const parts = [
+    {icon:'🔲',label:'CPU',   key:'cpu',    model:data.cpu,     aiP:data.price_cpu},
+    {icon:'🎮',label:'GPU',   key:'gpu',    model:data.gpu,     aiP:data.price_gpu},
+    {icon:'💾',label:'RAM',   key:'ram',    model:data.ram,     aiP:data.price_ram},
+    {icon:'💿',label:'SSD',   key:'storage',model:data.storage, aiP:data.price_ssd},
+    {icon:'🖥️',label:'케이스', key:'case',   model:data.pc_case, aiP:data.price_case},
+    {icon:'⚡',label:'파워',   key:'psu',    model:data.psu,     aiP:data.price_psu},
+  ].filter(p => p.model);
+
+  let dbTotal = 0, dbCount = 0;
+  const pinfos = parts.map(p => {
+    const db = findPrice(p.model);
+    if (db) { dbTotal += db; dbCount++; }
+    return { ...p, db, display: db ? won2(db) : (p.aiP || '조회중') };
+  });
+
+  const aiTotal = parsePrice(data.total_price);
+  const realTotal = dbCount >= 3 ? dbTotal : aiTotal;
+  const over = budget > 0 && realTotal > budget;
+  const close = budget > 0 && !over && realTotal > budget * 0.92;
+
+  // Scores
+  const g = data.score_gaming||0, w = data.score_work||0, pt = data.score_portability||0;
+  const ov = Math.round((g+w+pt)/3);
+  const vpm = realTotal > 0 ? (ov/(realTotal/10000)).toFixed(2) : '—';
+
+  let html = `
+  <div class="score-pills">
+    <div class="spill"><div class="spill-num" style="color:${scC(ov,100)}">${ov}</div><div class="spill-lbl">종합</div></div>
+    <div class="spill"><div class="spill-num" style="color:${scC(g,100)}">${g}</div><div class="spill-lbl">🎮 게임</div></div>
+    <div class="spill"><div class="spill-num" style="color:${scC(w,100)}">${w}</div><div class="spill-lbl">⚙️ 작업</div></div>
+    <div class="spill"><div class="spill-num" style="color:${scC(pt,100)}">${pt}</div><div class="spill-lbl">🧳 휴대</div></div>
+  </div>
+  <div class="vpm-box">
+    <div class="vpm-lbl">💰 가성비 지수 (종합점수 ÷ 만원)</div>
+    <div class="vpm-val">${vpm} 점/만원</div>
+  </div>
+  <div class="price-summary">
+    <div class="ps-head">
+      <div class="ps-head-left">
+        <div class="ps-label">총 견적</div>
+        <div class="ps-total-db">${won2(realTotal)}</div>
+        <div class="ps-total-ai">AI 추정: ${esc(data.total_price||'—')}</div>
+      </div>
+      ${budget > 0 ? `<div class="budget-badge ${over?'over':close?'close':'ok'}">
+        ${over ? `⚠️ 예산 초과<small>+${won2(realTotal-budget)}</small>` : `✅ 예산 내<small>여유 ${won2(budget-realTotal)}</small>`}
+      </div>` : ''}
+    </div>`;
+
+  // Budget bar
+  if (budget > 0) {
+    const pct = Math.min(realTotal/budget*100, 130);
+    const fillPct = Math.min(pct, 100);
+    const markerPct = Math.min(100/pct*100, 100);
+    const fillColor = over ? '#ef4444' : close ? '#f59e0b' : '#10b981';
+    html += `<div class="btrack-wrap">
+      <div class="btrack-bg">
+        <div class="btrack-fill" style="width:${fillPct}%;background:${fillColor}"></div>
+        <div class="btrack-marker" style="left:${markerPct}%"></div>
+      </div>
+      <div class="btrack-nums">
+        <span>₩0</span>
+        <span style="color:var(--yellow)">예산 ${won2(budget)}</span>
+        <span style="color:${fillColor}">실제 ${won2(realTotal)}</span>
+      </div>
+    </div>`;
+  }
+
+  // Part rows with live price fetch status
+  pinfos.forEach(p => {
+    html += `<div class="part-row">
+      <div class="pr-icon">${p.icon}</div>
+      <div class="pr-info">
+        <div class="pr-label">${p.label}</div>
+        <div class="pr-model" title="${esc(p.model)}">${esc(p.model)}</div>
+        <div class="pr-links">
+          <a class="rl dn" href="${dn(p.model)}" target="_blank">🔎 다나와</a>
+          <a class="rl nv" href="${nv(p.model)}" target="_blank">🛒 네이버쇼핑</a>
+        </div>
+      </div>
+      <div class="pr-right">
+        <div class="pr-price" id="pr-${p.key}">${p.display}</div>
+        <div class="pr-note">${p.db ? '📊 DB 평균가' : '🤖 AI 추정'}</div>
+      </div>
+    </div>`;
+  });
+
+  html += `</div>`;
+
+  // budget note from AI
+  if (data.budget_note) {
+    const isOver = data.budget_note.includes('초과');
+    html += `<div class="ms-warn ${isOver?'over':'ok'}" style="margin-top:10px">
+      💬 ${esc(data.budget_note)}
+    </div>`;
+  }
+
+  el.innerHTML = html;
+
+  // After render, fetch live prices via web search tool in Claude API
+  fetchLivePrices(pinfos);
+}
+
+/* Live price fetch: call Claude with web_search to get actual current prices */
+async function fetchLivePrices(pinfos) {
+  // Fetch prices for CPU and GPU (most expensive, most volatile)
+  const targets = pinfos.filter(p => ['CPU','GPU'].includes(p.label));
+  for (const p of targets) {
+    try {
+      const el = document.getElementById('pr-'+p.key);
+      if (!el) continue;
+      // Show loading
+      el.innerHTML = `<span class="price-updating"><span class="spinner"></span>조회중</span>`;
+
+      const resp = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 200,
+          tools: [{"type":"web_search_20250305","name":"web_search"}],
+          messages: [{
+            role: 'user',
+            content: `다나와에서 "${p.model}" 현재 최저가를 검색해서 숫자만 알려줘. 예: 62만원. 한국 원화 기준.`
+          }]
+        })
+      });
+      const data = await resp.json();
+      // Extract price from response
+      const fullText = data.content.map(b => b.text||'').join('');
+      const match = fullText.match(/(\d+(?:,\d+)?)\s*만\s*원/) || fullText.match(/(\d{2,3}),(\d{3})/);
+      if (match) {
+        const priceStr = match[0].includes('만') ? match[0] : `${parseInt(match[1].replace(',',''))/10000}만원`;
+        if (el) el.innerHTML = `<span style="color:var(--cyan)">${priceStr}</span>`;
+        const note = el.closest('.part-row')?.querySelector('.pr-note');
+        if (note) note.textContent = '🔴 실시간 조회';
+      } else {
+        // Fall back to DB price
+        if (el) el.textContent = p.display;
+      }
+    } catch(e) {
+      const el = document.getElementById('pr-'+p.key);
+      if (el) el.textContent = p.display;
+    }
+  }
+}
+
+function scC(v,max){const r=v/max;return r>=.85?'var(--green)':r>=.65?'var(--blue)':r>=.45?'var(--yellow)':'var(--red)';}
+
+function parsePrice(str) {
+  if (!str) return 0;
+  const m = str.match(/(\d[\d,]*)/); if (!m) return 0;
+  const n = parseInt(m[1].replace(/,/g,''));
+  if (str.includes('만')) return n*10000;
+  if (str.includes('억')) return n*100000000;
+  return n;
+}
+
+/* ════════════ AI AGENT ════════════ */
+const SYS = `당신은 PC/노트북 사양 추천 전문 AI입니다. 웹 검색을 활용해 실시간 가격 정보를 파악합니다.
+
+핵심 원칙:
+1. 사용 목적→예산→데스크탑/노트북→세부요구사항 파악 후 추천
+2. 예산 대비 실제 가격이 초과되면 솔직하게 명시. 예산에 맞게 구성 조정
+3. 가격은 2025년 6월 한국 다나와 기준 실제 시장가 사용
+4. total_price는 모든 부품 가격의 정확한 합산 (절대 줄이지 말 것)
+
+최적 조합 원칙:
+- 케이스+파워 반드시 포함
+- 게임: GPU 예산 40%, RAM 32GB DDR5
+- 편집: CPU+RAM 우선, RAM 64GB
+- 사무: 균형, RAM 16GB
+
+최종 추천 시 반드시 아래 JSON으로 응답:
+
+\`\`\`json
+{
+  "type":"spec_recommendation",
+  "title":"구성 이름",
+  "form":"데스크탑",
+  "cpu":"AMD Ryzen 7 9800X3D",
+  "price_cpu":"약 55만원",
+  "gpu":"NVIDIA GeForce RTX 4070",
+  "price_gpu":"약 62만원",
+  "ram":"DDR5 32GB 6000MHz Dual",
+  "price_ram":"약 12만원",
+  "storage":"Samsung 990 Pro 2TB",
+  "price_ssd":"약 18만원",
+  "pc_case":"Lian Li O11 Dynamic EVO",
+  "price_case":"약 18만원",
+  "psu":"850W 80+ Gold",
+  "price_psu":"약 12만원",
+  "total_price":"약 177만원",
+  "score_gaming":90,
+  "score_work":75,
+  "score_portability":5,
+  "reason":"추천 이유 2문장",
+  "alternatives":"예산 절약형 대안",
+  "budget_note":"예산 초과/내 여부를 솔직하게 한 문장"
+}
+\`\`\`
+
+주의: total_price는 price_* 합산값. 스타일: 친근하고 전문적 한국어, 한번에 최대 2개 질문.`;
+
+let hist = [], loading = false, lastBudget = 0;
+
+function extractBudget(text) {
+  const m = text.match(/(\d+)\s*만\s*원/);
+  if (m) return parseInt(m[1])*10000;
+  const m2 = text.match(/(\d+)\s*백\s*만/);
+  if (m2) return parseInt(m2[1])*1000000;
+  return 0;
+}
+
+function buildMiniSpec(d) {
+  const parts = ['cpu','gpu','ram','storage','pc_case','psu'];
+  const dbTotal = parts.reduce((sum,k)=>sum+(findPrice(d[k])||0),0);
+  const realTotal = dbTotal > 0 ? dbTotal : parsePrice(d.total_price);
+  const over = lastBudget > 0 && realTotal > lastBudget;
+
+  const rows = [
+    ['CPU',d.cpu,d.price_cpu],['GPU',d.gpu,d.price_gpu],
+    ['RAM',d.ram,d.price_ram],['SSD',d.storage,d.price_ssd],
+    ['케이스',d.pc_case,d.price_case],['파워',d.psu,d.price_psu],
+  ].filter(r=>r[1]).map(([k,v,p])=>`
+    <div class="ms-row">
+      <span class="ms-k">${k}</span>
+      <span class="ms-v">${esc((v||'').split(' ').slice(0,4).join(' '))}
+        ${p?`<span style="color:var(--green)"> ${esc(p)}</span>`:''}
+      </span>
+    </div>`).join('');
+
+  const warnHtml = d.budget_note ? `<div class="ms-warn ${d.budget_note.includes('초과')?'over':'ok'}">
+    ${d.budget_note.includes('초과')?'⚠️':'✅'} ${esc(d.budget_note)}
+  </div>` : '';
+
+  return `<div class="mini-spec">
+    <div class="ms-title">📋 ${esc(d.title)}</div>
+    ${rows}
+    <div class="ms-total">
+      <span>🏷️ 총 견적</span>
+      <span style="color:var(--green)">${esc(d.total_price||'—')}
+        ${dbTotal>0?`<span style="font-size:10px;color:var(--cyan)"> (DB: ${won2(dbTotal)})</span>`:''}
+      </span>
+    </div>
+    ${warnHtml}
+    ${d.alternatives?`<div class="ms-alt">💡 ${esc(d.alternatives)}</div>`:''}
+  </div>`;
+}
+
+function fmtMsg(text) {
+  const m = text.match(/```json\s*([\s\S]*?)\s*```/);
+  if (m) { try {
+    const d = JSON.parse(m[1]);
+    if (d.type === 'spec_recommendation') {
+      recCpu = d.cpu; recGpu = d.gpu;
+      const pre = text.slice(0, text.indexOf('```json')).trim();
+      const post = text.slice(text.indexOf('```', text.indexOf('```json')+3)+3).trim();
+      let h = '';
+      if (pre) h += `<div style="margin-bottom:8px">${esc(pre).replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}</div>`;
+      h += buildMiniSpec(d);
+      if (post) h += `<div style="margin-top:8px;font-size:12px;color:var(--dim)">${esc(post).replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}</div>`;
+      setTimeout(() => {
+        renderPriceTab(d, lastBudget);
+        renderCpuTab();
+        renderGpuTab();
+        switchTab('price');
+      }, 100);
+      return h;
+    }
+  } catch(e) { console.error(e); } }
+  return esc(text).replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+}
+
+function addMsg(role, content, chips=[]) {
+  const area = document.getElementById('ca');
+  const row = document.createElement('div'); row.className = 'mr '+role;
+  const av = document.createElement('div'); av.className = 'av '+role; av.textContent = role==='ai'?'🤖':'👤';
+  const bu = document.createElement('div'); bu.className = 'bu '+role; bu.innerHTML = fmtMsg(content);
+  if (chips.length) {
+    const cd = document.createElement('div'); cd.className = 'chips';
+    chips.forEach(c => { const b = document.createElement('button'); b.className = 'chip'; b.textContent = c; b.onclick = () => qr(c); cd.appendChild(b); });
+    bu.appendChild(cd);
+  }
+  if (role==='ai') { row.appendChild(av); row.appendChild(bu); } else { row.appendChild(bu); row.appendChild(av); }
+  area.appendChild(row); area.scrollTop = area.scrollHeight;
+}
+
+function showTyp() {
+  const a = document.getElementById('ca');
+  const r = document.createElement('div'); r.className = 'mr ai'; r.id = 'tr';
+  r.innerHTML = `<div class="av ai">🤖</div><div class="bu ai"><div class="typ"><span></span><span></span><span></span></div></div>`;
+  a.appendChild(r); a.scrollTop = a.scrollHeight;
+}
+function rmTyp() { const e = document.getElementById('tr'); if(e) e.remove(); }
+
+async function callC(msg) {
+  hist.push({role:'user', content:msg});
+  const r = await fetch('/api/chat', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({model:'claude-sonnet-4-6', max_tokens:2000, system:SYS, messages:hist})
+  });
+  const data = await r.json();
+  const rep = data.content.map(b=>b.text||'').join('');
+  hist.push({role:'assistant', content:rep});
+  return rep;
+}
+
+async function sendMsg() {
+  const inp = document.getElementById('ui'); const txt = inp.value.trim();
+  if (!txt||loading) return;
+  const b = extractBudget(txt); if (b>0) lastBudget = b;
+  inp.value = ''; autoResize(inp); loading = true; document.getElementById('sb').disabled = true;
+  addMsg('user', txt); showTyp();
+  try { const rep = await callC(txt); rmTyp(); addMsg('ai', rep); }
+  catch(e) { rmTyp(); addMsg('ai','오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'); }
+  loading = false; document.getElementById('sb').disabled = false; document.getElementById('ui').focus();
+}
+function qr(t) { document.getElementById('ui').value = t; sendMsg(); }
+function handleKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();} }
+function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,110)+'px'; }
+
+function resetAll() {
+  hist=[]; lastBudget=0; recCpu=null; recGpu=null;
+  document.getElementById('ca').innerHTML='';
+  document.getElementById('tab-price').innerHTML='<div class="empty" id="priceEmpty"><div class="empty-icon">💰</div><p>AI와 대화하면<br>실시간으로 가격을 조회하고<br>예산 대비 견적을 보여드립니다</p></div>';
+  renderCpuTab(); renderGpuTab();
+  startChat();
+}
+
+async function startChat() {
+  loading=true; document.getElementById('sb').disabled=true; showTyp();
+  try {
+    const rep = await callC('안녕하세요, PC 또는 노트북 사양 추천 받고 싶습니다.');
+    rmTyp();
+    addMsg('ai', rep, ['🎮 게이밍 PC','🎬 영상/3D 편집','💻 개발·프로그래밍','📄 사무·문서','🎨 그래픽 디자인','🤖 AI/딥러닝']);
+  } catch(e) {
+    rmTyp();
+    addMsg('ai','안녕하세요! PC 사양 추천 AI입니다. 어떤 용도로 사용하실 계획인가요?',
+      ['🎮 게이밍 PC','🎬 영상/3D 편집','💻 개발·프로그래밍','📄 사무·문서','🎨 그래픽 디자인','🤖 AI/딥러닝']);
+  }
+  loading=false; document.getElementById('sb').disabled=false;
+}
+
+// Init: render ranking tables immediately
+renderCpuTab();
+renderGpuTab();
+startChat();
+</script>
+</body>
+</html>
