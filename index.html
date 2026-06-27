@@ -658,6 +658,72 @@ function renderPriceTab(data, budget) {
 
   html += `</div>`;
 
+  // ── 궁합/발열 섹션 ──
+  const compat = findCompatScore(data.cpu, data.gpu);
+  const gpuTherm = findGpuThermal(data.gpu);
+  const cpuTherm = findCpuThermal(data.cpu);
+
+  if (compat || gpuTherm || cpuTherm) {
+    let compatHtml = '<div style="margin-top:12px">';
+    compatHtml += '<div class="sec-label" style="margin-bottom:8px">🔧 부품 궁합 & 발열 분석</div>';
+
+    // CPU-GPU 궁합
+    if (compat) {
+      const scoreColor = compat.score >= 95 ? 'var(--green)' : compat.score >= 85 ? 'var(--yellow)' : 'var(--red)';
+      compatHtml += '<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px">';
+      compatHtml += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+      compatHtml += '<div style="font-size:11px;font-weight:600">CPU × GPU 궁합</div>';
+      compatHtml += '<div style="font-family:JetBrains Mono,monospace;font-size:18px;font-weight:700;color:' + scoreColor + '">' + compat.score + '<span style="font-size:10px;color:var(--muted)">점</span></div>';
+      compatHtml += '</div>';
+      compatHtml += '<div style="height:6px;background:var(--input);border-radius:3px;overflow:hidden;margin-bottom:8px">';
+      compatHtml += '<div style="width:' + compat.score + '%;height:100%;background:' + scoreColor + ';border-radius:3px;transition:width 1s"></div>';
+      compatHtml += '</div>';
+      compatHtml += '<div style="font-size:11px;color:var(--dim)">' + compat.note + '</div>';
+      if (compat.bottleneck > 5) {
+        compatHtml += '<div style="font-size:10px;color:var(--yellow);margin-top:4px">⚠️ 병목 ' + compat.bottleneck + '% 예상</div>';
+      }
+      compatHtml += '</div>';
+    }
+
+    // 발열 정보
+    if (cpuTherm || gpuTherm) {
+      compatHtml += '<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px">';
+      compatHtml += '<div style="font-size:11px;font-weight:600;margin-bottom:8px">🌡️ 발열 정보</div>';
+      if (cpuTherm) {
+        const tempColor = cpuTherm.temp_load >= 90 ? 'var(--red)' : cpuTherm.temp_load >= 75 ? 'var(--yellow)' : 'var(--green)';
+        compatHtml += '<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid var(--border)">';
+        compatHtml += '<span style="color:var(--dim)">CPU 최대 온도</span>';
+        compatHtml += '<span style="color:' + tempColor + ';font-family:JetBrains Mono,monospace">' + cpuTherm.temp_load + '°C</span></div>';
+        compatHtml += '<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid var(--border)">';
+        compatHtml += '<span style="color:var(--dim)">CPU TDP</span>';
+        compatHtml += '<span style="font-family:JetBrains Mono,monospace">' + cpuTherm.power + 'W</span></div>';
+        compatHtml += '<div style="font-size:10px;color:var(--cyan);padding:4px 0;border-bottom:1px solid var(--border)">권장 쿨러: ' + cpuTherm.cooler_min + '</div>';
+        if (cpuTherm.hot_spot) {
+          compatHtml += '<div style="font-size:10px;color:var(--red);padding:4px 0">⚠️ 고발열 CPU — 충분한 쿨링 필수</div>';
+        }
+      }
+      if (gpuTherm) {
+        const tempColor = gpuTherm.temp_load >= 85 ? 'var(--red)' : gpuTherm.temp_load >= 75 ? 'var(--yellow)' : 'var(--green)';
+        compatHtml += '<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid var(--border)">';
+        compatHtml += '<span style="color:var(--dim)">GPU 최대 온도</span>';
+        compatHtml += '<span style="color:' + tempColor + ';font-family:JetBrains Mono,monospace">' + gpuTherm.temp_load + '°C</span></div>';
+        compatHtml += '<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid var(--border)">';
+        compatHtml += '<span style="color:var(--dim)">GPU 소비전력</span>';
+        compatHtml += '<span style="font-family:JetBrains Mono,monospace">' + gpuTherm.power + 'W</span></div>';
+        compatHtml += '<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0">';
+        compatHtml += '<span style="color:var(--dim)">소음 수준</span>';
+        compatHtml += '<span>' + gpuTherm.noise + '</span></div>';
+      }
+      // PSU 권장
+      const totalPower = (cpuTherm?.power || 125) + (gpuTherm?.power || 150);
+      const psuRec = totalPower > 500 ? '1000W 이상' : totalPower > 350 ? '850W 이상' : totalPower > 250 ? '750W 이상' : '650W 이상';
+      compatHtml += '<div style="font-size:10px;color:var(--cyan);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">💡 권장 파워: ' + psuRec + ' (총 소비전력 약 ' + totalPower + 'W 기준)</div>';
+      compatHtml += '</div>';
+    }
+    compatHtml += '</div>';
+    el.innerHTML += compatHtml;
+  }
+
   // budget note from AI
   if (data.budget_note) {
     const isOver = data.budget_note.includes('초과');
@@ -674,47 +740,79 @@ function renderPriceTab(data, budget) {
 
 /* Live price fetch: call Claude with web_search to get actual current prices */
 async function fetchLivePrices(pinfos) {
-  // Fetch prices for CPU and GPU (most expensive, most volatile)
-  const targets = pinfos.filter(p => ['CPU','GPU'].includes(p.label));
-  for (const p of targets) {
+  // 모든 부품 가격 조회 (네이버쇼핑 API + 다나와 크롤링)
+  for (const p of pinfos) {
+    const el = document.getElementById('pr-' + p.key);
+    const noteEl = el ? el.closest('.part-row')?.querySelector('.pr-note') : null;
+    if (!el) continue;
+    el.innerHTML = '<span class="price-updating"><span class="spinner"></span>조회중</span>';
     try {
-      const el = document.getElementById('pr-'+p.key);
-      if (!el) continue;
-      // Show loading
-      el.innerHTML = `<span class="price-updating"><span class="spinner"></span>조회중</span>`;
-
-      const resp = await fetch('/api/chat', {
+      const resp = await fetch('/api/price', {
         method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 200,
-          tools: [{"type":"web_search_20250305","name":"web_search"}],
-          messages: [{
-            role: 'user',
-            content: `다나와에서 "${p.model}" 현재 최저가를 검색해서 숫자만 알려줘. 예: 62만원. 한국 원화 기준.`
-          }]
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: p.model })
       });
       const data = await resp.json();
-      // Extract price from response
-      const fullText = data.content.map(b => b.text||'').join('');
-      const match = fullText.match(/(\d+(?:,\d+)?)\s*만\s*원/) || fullText.match(/(\d{2,3}),(\d{3})/);
-      if (match) {
-        const priceStr = match[0].includes('만') ? match[0] : `${parseInt(match[1].replace(',',''))/10000}만원`;
-        if (el) el.innerHTML = `<span style="color:var(--cyan)">${priceStr}</span>`;
-        const note = el.closest('.part-row')?.querySelector('.pr-note');
-        if (note) note.textContent = '🔴 실시간 조회';
+      if (data.price && data.price > 0) {
+        const priceWon = Math.round(data.price / 10000);
+        const avgWon = data.avg ? Math.round(data.avg / 10000) : null;
+        el.innerHTML = '<span style="color:var(--cyan)">' + priceWon.toLocaleString() + '만원</span>';
+        if (noteEl) {
+          noteEl.innerHTML = '🔴 실시간 최저가 (' + data.source + ')' +
+            (avgWon ? '<br><span style="color:var(--muted);font-size:9px">평균 ' + avgWon.toLocaleString() + '만원</span>' : '');
+        }
+        // Update price in part slot bar too
+        const slotPriceEl = document.getElementById('pp-' + p.key);
+        if (slotPriceEl) slotPriceEl.textContent = priceWon.toLocaleString() + '만원';
       } else {
-        // Fall back to DB price
-        if (el) el.textContent = p.display;
+        el.textContent = p.display;
+        if (noteEl) noteEl.textContent = p.db ? '📊 DB 평균가' : '🤖 AI 추정';
       }
     } catch(e) {
-      const el = document.getElementById('pr-'+p.key);
-      if (el) el.textContent = p.display;
+      el.textContent = p.display;
     }
   }
+  // Recalculate total after all prices fetched
+  recalcTotal();
 }
+
+function recalcTotal() {
+  // Sum up all currently displayed prices from pr- elements
+  const keys = ['cpu','gpu','ram','storage','case','psu'];
+  let total = 0;
+  keys.forEach(k => {
+    const el = document.getElementById('pr-' + k);
+    if (!el) return;
+    const txt = el.textContent || el.innerText || '';
+    const m = txt.match(/([\d,]+)\s*만원/);
+    if (m) total += parseInt(m[1].replace(/,/g,'')) * 10000;
+  });
+  if (total <= 0) return;
+  // Update total display
+  const totalEl = document.querySelector('.ps-total-db');
+  if (totalEl) totalEl.textContent = Math.round(total/10000).toLocaleString() + '만원';
+  const totalAiEl = document.querySelector('.ps-total-ai');
+  // Update budget bar
+  updateBudgetBar(total);
+}
+
+function updateBudgetBar(realTotal) {
+  if (!lastBudget || lastBudget <= 0) return;
+  const pct = Math.min(realTotal / lastBudget * 100, 130);
+  const fillPct = Math.min(pct, 100);
+  const fillColor = realTotal > lastBudget ? '#ef4444' : realTotal > lastBudget * 0.92 ? '#f59e0b' : '#10b981';
+  const fill = document.querySelector('.btrack-fill');
+  if (fill) { fill.style.width = fillPct + '%'; fill.style.background = fillColor; }
+  const badge = document.querySelector('.budget-badge');
+  if (badge) {
+    const over = realTotal > lastBudget;
+    const diff = Math.abs(realTotal - lastBudget);
+    const diffWon = Math.round(diff/10000).toLocaleString();
+    badge.className = 'budget-badge ' + (over ? 'over' : realTotal > lastBudget * 0.92 ? 'close' : 'ok');
+    badge.innerHTML = (over ? '⚠️ 예산 초과<small>+' : '✅ 예산 내<small>여유 ') + diffWon + '만원</small>';
+  }
+}
+
 
 function scC(v,max){const r=v/max;return r>=.85?'var(--green)':r>=.65?'var(--blue)':r>=.45?'var(--yellow)':'var(--red)';}
 
@@ -728,6 +826,114 @@ function parsePrice(str) {
 }
 
 /* ════════════ AI AGENT ════════════ */
+
+/* ════════ 부품 궁합 / 발열 DB ════════
+   기준: TechPowerUp GPU DB, UserBenchmark 커뮤니티, 쿨엔조이/루리웹 실사용 데이터
+   점수: 100점 만점 (높을수록 좋음)
+*/
+const COMPAT_DB = {
+  // CPU-GPU 궁합 점수 (병목 최소화 기준)
+  // key: "cpu키워드_gpu키워드" → score (0~100), bottleneck(병목%), note
+  cpu_gpu_pairs: [
+    // 게이밍 최적 조합
+    {cpu:'9800x3d', gpu:'rtx 4070',   score:98, bottleneck:2,  note:'게이밍 최적 조합, 병목 거의 없음'},
+    {cpu:'9800x3d', gpu:'rtx 4070 super', score:98, bottleneck:2, note:'게이밍 황금 조합'},
+    {cpu:'9800x3d', gpu:'rtx 4070 ti', score:97, bottleneck:3, note:'고해상도 게이밍 최강'},
+    {cpu:'9800x3d', gpu:'rtx 4080',   score:95, bottleneck:5,  note:'4K 게이밍 추천'},
+    {cpu:'9800x3d', gpu:'rtx 4090',   score:90, bottleneck:10, note:'CPU가 약간 발목, 그래도 최고 조합'},
+    {cpu:'9800x3d', gpu:'rx 7800 xt', score:97, bottleneck:3,  note:'가성비 게이밍 최적'},
+    {cpu:'9800x3d', gpu:'rx 7900 xtx',score:93, bottleneck:7,  note:'AMD 풀 조합 우수'},
+    {cpu:'7800x3d', gpu:'rtx 4070',   score:97, bottleneck:3,  note:'검증된 게이밍 조합'},
+    {cpu:'7800x3d', gpu:'rtx 4080',   score:94, bottleneck:6,  note:'하이엔드 게이밍'},
+    {cpu:'7800x3d', gpu:'rtx 4090',   score:88, bottleneck:12, note:'4090은 9800X3D 권장'},
+    {cpu:'i5-14600k', gpu:'rtx 4070', score:95, bottleneck:5,  note:'가성비 최고 조합'},
+    {cpu:'i5-14600k', gpu:'rtx 4060 ti', score:97, bottleneck:3, note:'1080p 게이밍 완벽'},
+    {cpu:'i5-14600k', gpu:'rtx 4080', score:88, bottleneck:12, note:'CPU가 살짝 발목'},
+    {cpu:'i7-14700k', gpu:'rtx 4080', score:96, bottleneck:4,  note:'하이엔드 밸런스'},
+    {cpu:'i7-14700k', gpu:'rtx 4090', score:93, bottleneck:7,  note:'플래그십 조합'},
+    {cpu:'i9-14900k', gpu:'rtx 4090', score:97, bottleneck:3,  note:'최고 사양 조합'},
+    {cpu:'r5 9600x',  gpu:'rtx 4060', score:97, bottleneck:3,  note:'1080p 가성비 완벽'},
+    {cpu:'r5 9600x',  gpu:'rtx 4070', score:94, bottleneck:6,  note:'1440p 게이밍 추천'},
+    {cpu:'r5 9600x',  gpu:'rtx 4070 super', score:90, bottleneck:10, note:'CPU 업그레이드 고려'},
+  ],
+  // GPU 발열/소음 데이터 (TechPowerUp 기준)
+  gpu_thermal: {
+    'rtx 5090':  {temp_load:83, temp_idle:38, power:575, noise:'높음',  tdp_rating:'매우높음'},
+    'rtx 5080':  {temp_load:78, temp_idle:35, power:360, noise:'중간',  tdp_rating:'높음'},
+    'rtx 5070 ti':{temp_load:75, temp_idle:33, power:285, noise:'보통', tdp_rating:'중간'},
+    'rtx 5070':  {temp_load:72, temp_idle:32, power:250, noise:'조용',  tdp_rating:'중간'},
+    'rtx 5060 ti':{temp_load:70, temp_idle:30, power:180, noise:'조용', tdp_rating:'낮음'},
+    'rtx 4090':  {temp_load:84, temp_idle:38, power:450, noise:'높음',  tdp_rating:'매우높음'},
+    'rtx 4080':  {temp_load:79, temp_idle:35, power:320, noise:'중간',  tdp_rating:'높음'},
+    'rtx 4070 ti super':{temp_load:74, temp_idle:33, power:285, noise:'보통', tdp_rating:'중간'},
+    'rtx 4070 super':{temp_load:72, temp_idle:32, power:220, noise:'조용', tdp_rating:'중간'},
+    'rtx 4070':  {temp_load:70, temp_idle:31, power:200, noise:'조용',  tdp_rating:'낮음'},
+    'rtx 4060 ti':{temp_load:68, temp_idle:30, power:165, noise:'매우조용', tdp_rating:'낮음'},
+    'rtx 4060':  {temp_load:65, temp_idle:28, power:115, noise:'매우조용', tdp_rating:'매우낮음'},
+    'rx 7900 xtx':{temp_load:89, temp_idle:42, power:355, noise:'높음', tdp_rating:'높음'},
+    'rx 7900 xt':{temp_load:85, temp_idle:40, power:300, noise:'중간',  tdp_rating:'높음'},
+    'rx 7800 xt':{temp_load:76, temp_idle:34, power:263, noise:'보통',  tdp_rating:'중간'},
+    'rx 7700 xt':{temp_load:72, temp_idle:32, power:245, noise:'보통',  tdp_rating:'중간'},
+    'rx 7600':   {temp_load:68, temp_idle:30, power:165, noise:'조용',  tdp_rating:'낮음'},
+  },
+  // CPU 발열 데이터
+  cpu_thermal: {
+    'ryzen 9 9950x': {temp_load:85, power:170, cooler_min:'280mm AIO 이상', hot_spot:true},
+    'ryzen 9 9900x': {temp_load:80, power:120, cooler_min:'240mm AIO 이상', hot_spot:false},
+    'ryzen 7 9800x3d':{temp_load:75, power:120, cooler_min:'240mm AIO 또는 고성능 공랭', hot_spot:false},
+    'ryzen 7 9700x': {temp_load:68, power:65,  cooler_min:'공랭 타워쿨러', hot_spot:false},
+    'ryzen 5 9600x': {temp_load:65, power:65,  cooler_min:'공랭 타워쿨러', hot_spot:false},
+    'core i9-14900k':{temp_load:100,power:253, cooler_min:'360mm AIO 필수', hot_spot:true},
+    'core i7-14700k':{temp_load:90, power:253, cooler_min:'280mm AIO 이상', hot_spot:true},
+    'core i5-14600k':{temp_load:80, power:181, cooler_min:'240mm AIO 또는 고성능 공랭', hot_spot:false},
+    'core ultra 9 285k':{temp_load:78, power:125, cooler_min:'240mm AIO 이상', hot_spot:false},
+    'core ultra 7 265k':{temp_load:72, power:125, cooler_min:'공랭 타워쿨러', hot_spot:false},
+    'core i5-13400': {temp_load:60, power:65,  cooler_min:'기본 쿨러 가능', hot_spot:false},
+  },
+  // RAM 최적 조합
+  ram_compat: {
+    'am5': {best:'DDR5 6000MHz CL30', good:'DDR5 6000MHz CL36', avoid:'DDR5 8000+MHz (불안정 가능성)'},
+    'lga1700': {best:'DDR5 6400MHz 또는 DDR4 3600MHz', good:'DDR4 3200MHz', avoid:'DDR4 4000+MHz OC'},
+    'lga1851': {best:'DDR5 6400MHz CL32', good:'DDR5 5600MHz', avoid:'DDR4 (미지원)'},
+  }
+};
+
+function findCompatScore(cpuName, gpuName) {
+  if (!cpuName || !gpuName) return null;
+  const c = cpuName.toLowerCase();
+  const g = gpuName.toLowerCase();
+  let best = null;
+  for (const pair of COMPAT_DB.cpu_gpu_pairs) {
+    if (c.includes(pair.cpu) && g.includes(pair.gpu)) {
+      if (!best || pair.score > best.score) best = pair;
+    }
+  }
+  return best;
+}
+
+function findGpuThermal(gpuName) {
+  if (!gpuName) return null;
+  const g = gpuName.toLowerCase();
+  for (const [k, v] of Object.entries(COMPAT_DB.gpu_thermal)) {
+    if (g.includes(k)) return { name: k, ...v };
+  }
+  return null;
+}
+
+function findCpuThermal(cpuName) {
+  if (!cpuName) return null;
+  const c = cpuName.toLowerCase();
+  for (const [k, v] of Object.entries(COMPAT_DB.cpu_thermal)) {
+    if (c.includes(k.replace('core ','').replace('ryzen ',''))) return { name: k, ...v };
+  }
+  // broader match
+  for (const [k, v] of Object.entries(COMPAT_DB.cpu_thermal)) {
+    const kw = k.split(' ').filter(w => w.length > 2);
+    if (kw.every(w => c.includes(w))) return { name: k, ...v };
+  }
+  return null;
+}
+
 const SYS = `당신은 PC/노트북 사양 추천 전문 AI입니다. 웹 검색을 활용해 실시간 가격 정보를 파악합니다.
 
 핵심 원칙:
@@ -771,7 +977,12 @@ const SYS = `당신은 PC/노트북 사양 추천 전문 AI입니다. 웹 검색
 }
 \`\`\`
 
-주의: total_price는 price_* 합산값. 스타일: 친근하고 전문적 한국어, 한번에 최대 2개 질문.`;
+주의:
+- total_price는 price_* 합산값. 절대 낮추지 말 것.
+- 발열이 높은 CPU(i9-14900K, i7-14700K 등) 추천 시 반드시 쿨러 언급
+- CPU-GPU 병목 최소화 우선 (예: RTX 4090 + R5 9600X 금지)
+- AM5 플랫폼은 DDR5 6000MHz CL30 RAM 권장
+- 스타일: 친근하고 전문적 한국어, 한번에 최대 2개 질문.`;
 
 let hist = [], loading = false, lastBudget = 0;
 
