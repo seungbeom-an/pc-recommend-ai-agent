@@ -750,7 +750,7 @@ async function fetchLivePrices(pinfos) {
       const resp = await fetch('/api/price', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: p.model })
+        body: JSON.stringify({ query: p.model, category: p.label })
       });
       const data = await resp.json();
       if (data.price && data.price > 0) {
